@@ -159,10 +159,7 @@ function renderForecastCard(forecast, timezone) {
   forecastContainer.append(col);
 }
 
-// function to add each city to local storage and create a list in the searchHistoryContainer and add event listener to each city to display weather for that city when clicked
-function renderSearchHistory() {
 
-}
 
 
 fetchWeather({

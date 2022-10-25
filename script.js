@@ -1,43 +1,176 @@
-var apiKey = "5ee9eea27f5be30445ae56bf25983572";
-var userFormEl = document.querySelector("#user-form");
-var cityNameInputEl = document.querySelector("#city-name");
-var searchHistoryEl = document.querySelector("#search-history");
-var currentWeatherEl = document.querySelector("#current-weather");
-var weatherInfoEl = document.querySelector("#weather-info");
-var cardDeckEl = document.querySelector("#card-deck");
-
-var currentData = {};
-var forecastData = {};
+// Global variables
 var searchHistory = [];
+var weatherApiRootUrl = 'https://api.openweathermap.org';
+var weatherApiKey = 'd91f911bcf2c0f925fb6535547a5ddc9';
 
-var listI = 0;
+// DOM element references
+var searchForm = document.querySelector('#search-form');
+var searchInput = document.querySelector('#search-input');
+var todayContainer = document.querySelector('#today');
+var forecastContainer = document.querySelector('#forecast');
+var searchHistoryContainer = document.querySelector('#history');
 
-// fetch current weather info
+// Fetches weather data for given location from the Weather Geolocation
+// endpoint; then, calls functions to display current and forecast weather data.
+//location argument is an object {
+//	lat: 23423,
+//	lon: arsfe
+//}
+// Add timezone plugins to day.js
+dayjs.extend(window.dayjs_plugin_utc);
+dayjs.extend(window.dayjs_plugin_timezone);
 
-var getCurrentWeather = function (city) {
-    var apiUrl = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&units=imperial&appid=" + apiKey;
-    fetch(apiUrl)
-        .then(function (response) {
-            if (response.ok) {
-                response.json().then(function (data) {
-                    currentData = data;
-                    displayCurrentWeather();
-                    addSearchHistory(data.list[0].name);
-                });
-            } else {
-                    alert("Error: " + response.statusText);
-            }
-        })
-        .catch(function (error) {
-            alert("Unable to connect to OpenWeather");
-        });
-};
+function renderItems(city, data) {
+  renderCurrentWeather(city, data.current, data.timezone);
+  renderForecast(data.daily, data.timezone);
+}
 
 
-// display current weather information
+function fetchWeather(location) {
+ 	var { lat } = location;
+  	var { lon } = location;
+  	var city = location.name;
+ 	var apiUrl = `${weatherApiRootUrl}/data/2.5/onecall?lat=${lat}&lon=${lon}&units=imperial&exclude=minutely,hourly&appid=${weatherApiKey}`;
 
-// call and save weather data
 
-// add to search history
+ 	fetch(apiUrl)
+ 		.then(
 
-// reset elements
+ 			function (res) {
+	      		return res.json();
+	    	}
+
+
+ 			)
+	    .then(
+	    	function (data) {
+
+	    	console.log("DATA", data)
+      		renderItems(city, data);
+
+
+    	}
+    	)
+    	.catch(function (err) {
+      		console.error(err);
+    	});
+
+}
+
+// Function to display current weather.
+function renderCurrentWeather(city, currentWeather) {
+    // Clear old content
+    todayContainer.textContent = '';
+    // Create HTML content for current weather
+    var title = document.createElement('h3');
+    title.textContent = "Current Weather for " + city;
+    var card = document.createElement('div');
+    card.classList = 'card bg-primary text-light';
+    var wind = document.createElement('p');
+    wind.classList = 'card-text';
+    wind.textContent = 'Wind: ' + currentWeather.wind_speed + ' MPH';
+    var humidity = document.createElement('p');
+    humidity.classList = 'card-text';
+    humidity.textContent = 'Humidity: ' + currentWeather.humidity + '%';
+    var temp = document.createElement('p');
+    temp.classList = 'card-text';
+    temp.textContent = 'Temp: ' + currentWeather.temp + ' °F';
+    var cardBody = document.createElement('div');
+    cardBody.classList = 'card-body';
+    var img = document.createElement('img');
+    img.setAttribute(
+        'src',
+        'https://openweathermap.org/img/w/' + currentWeather.weather[0].icon + '.png'
+    );
+    // Merge together and put on page
+    title.appendChild(img);
+    cardBody.appendChild(title);
+    cardBody.appendChild(temp);
+    cardBody.appendChild(humidity);
+    cardBody.appendChild(wind);
+    card.appendChild(cardBody);
+    todayContainer.appendChild(card);
+}
+
+// Function to display 5 day forecast.
+function renderForecast(dailyForecast, timezone) {
+  // Create unix timestamps for start and end of 5 day forecast
+  var startDt = dayjs().tz(timezone).add(1, 'day').startOf('day').unix();
+  var endDt = dayjs().tz(timezone).add(6, 'day').startOf('day').unix();
+
+  var headingCol = document.createElement('div');
+  var heading = document.createElement('h4');
+
+  headingCol.setAttribute('class', 'col-12');
+  heading.textContent = '5-Day Forecast:';
+  headingCol.append(heading);
+
+  forecastContainer.innerHTML = '';
+  forecastContainer.append(headingCol);
+  for (var i = 0; i < dailyForecast.length; i++) {
+    // The api returns forecast data which may include 12pm on the same day and
+    // always includes the next 7 days. 
+    if (dailyForecast[i].dt >= startDt && dailyForecast[i].dt < endDt) {
+      renderForecastCard(dailyForecast[i], timezone);
+    }
+  }
+}
+
+function renderForecastCard(forecast, timezone) {
+  // variables for data from api
+  var unixTs = forecast.dt;
+  var iconUrl = `https://openweathermap.org/img/w/${forecast.weather[0].icon}.png`;
+  var iconDescription = forecast.weather[0].description;
+  var tempF = forecast.temp.day;
+  var { humidity } = forecast;
+  var windMph = forecast.wind_speed;
+
+  // Create elements for a card
+  var col = document.createElement('div');
+  var card = document.createElement('div');
+  var cardBody = document.createElement('div');
+  var cardTitle = document.createElement('h5');
+  var weatherIcon = document.createElement('img');
+  var tempEl = document.createElement('p');
+  var windEl = document.createElement('p');
+  var humidityEl = document.createElement('p');
+
+  col.append(card);
+  card.append(cardBody);
+  cardBody.append(cardTitle, weatherIcon, tempEl, windEl, humidityEl);
+
+  col.setAttribute('class', 'col-md');
+  col.classList.add('five-day-card');
+  card.setAttribute('class', 'card bg-primary h-100 text-white');
+  cardBody.setAttribute('class', 'card-body p-2');
+  cardTitle.setAttribute('class', 'card-title');
+  tempEl.setAttribute('class', 'card-text');
+  windEl.setAttribute('class', 'card-text');
+  humidityEl.setAttribute('class', 'card-text');
+
+  // Add content to elements
+  cardTitle.textContent = dayjs.unix(unixTs).tz(timezone).format('M/D/YYYY');
+  weatherIcon.setAttribute('src', iconUrl);
+  weatherIcon.setAttribute('alt', iconDescription);
+  tempEl.textContent = `Temp: ${tempF} °F`;
+  windEl.textContent = `Wind: ${windMph} MPH`;
+  humidityEl.textContent = `Humidity: ${humidity} %`;
+
+  forecastContainer.append(col);
+}
+
+// function to add each city to local storage and create a list in the searchHistoryContainer and add event listener to each city to display weather for that city when clicked
+function renderSearchHistory() {
+
+}
+
+
+fetchWeather({
+	lat: 10,
+	lon: 10,
+	name: "San Diego"
+})
+
+
+
+
